@@ -31,7 +31,7 @@ namespace stackoverflow_28798348
 
         private void backgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            BackgroundWorker bckw = (BackgroundWorker)sender;
+            BackgroundWorker bckw = (BackgroundWorker)sender; // Recommended way, thread safe
 
             try
             {
@@ -51,13 +51,13 @@ namespace stackoverflow_28798348
                     foreach (string file in files)
                     {
                         filesCount++;
-                        int fileTotalLines = File.ReadAllLines(file).Length;
+                        double fileTotalLines = File.ReadAllLines(file).Length;
 
                         this.BeginInvoke(new MethodInvoker(delegate
                         {
                             lblFileName.Text = "Loading file: " + file.Substring(file.LastIndexOf("\\") + 1);
                             lblTotalFiles.Text = "File " + filesCount + " of " + files.Length;
-                        }));
+                        })); // Invoke async, way too fast this...
 
                         using (StreamReader reader = new StreamReader(file))
                         {
@@ -71,7 +71,8 @@ namespace stackoverflow_28798348
                                         {
                                             reader.ReadLine();
                                             rowsCount++;
-                                        }
+                                        } // why are you using that? it won't get TRUE
+
                                         string email = reader.ReadLine().Trim();
                                         if (!string.IsNullOrEmpty(email) && !dicEmails.ContainsKey(email))
                                         {
@@ -81,13 +82,14 @@ namespace stackoverflow_28798348
                                         rowsCount++;
                                         stopPosition++;
 
-                                        bckw.ReportProgress((rowsCount * 100 / fileTotalLines), (int)ProgressType.Row);
+                                        bckw.ReportProgress((int)Math.Round(rowsCount * 100 / fileTotalLines, 0), (int)ProgressType.Row);
                                         if (bckw.CancellationPending)
                                             return;
                                     }
                                     catch (Exception ex)
                                     {
                                         hadReadErrors = true;
+                                        throw; // Throw it again, or you won't know the Exception
                                     }
                                 }
                             }
@@ -112,20 +114,20 @@ namespace stackoverflow_28798348
         {
             //try
             //{
-                switch ((int)e.UserState)
-                {
-                    case (int)ProgressType.Row:
-                        lblFileProgress.Text = e.ProgressPercentage + "%";
-                        if (e.ProgressPercentage <= fileProgressBar.Maximum)
-                            fileProgressBar.Value = e.ProgressPercentage;
-                        break;
-                    case (int)ProgressType.File:
-                        lblTotalProgress.Text = e.ProgressPercentage + "%";
-                        totalProgressBar.Value = e.ProgressPercentage;
-                        break;
-                }
+            switch ((int)e.UserState)
+            {
+                case (int)ProgressType.Row:
+                    lblFileProgress.Text = e.ProgressPercentage + "%";
+                    if (e.ProgressPercentage <= fileProgressBar.Maximum)
+                        fileProgressBar.Value = e.ProgressPercentage;
+                    break;
+                case (int)ProgressType.File:
+                    lblTotalProgress.Text = e.ProgressPercentage + "%";
+                    totalProgressBar.Value = e.ProgressPercentage;
+                    break;
+            }
             //}
-            //catch (Exception ex) { }
+            //catch (Exception ex) { } // Don't catch everything
         }
 
         private void btnBrowseSave_Click(object sender, EventArgs e)
